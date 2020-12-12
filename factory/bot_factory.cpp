@@ -48,7 +48,7 @@ void gazebo::BotFactory::OnUpdate(const common::UpdateInfo &_info)
 	{
 		this->logger_.Log(
 			"exploration end time: "
-			+ this->world_->GetSimTime().FormattedString(
+			+ this->world_->SimTime().FormattedString(
 				gazebo::common::Time::MINUTES,
 				gazebo::common::Time::SECONDS
 			)
@@ -93,7 +93,7 @@ void gazebo::BotFactory::InsertBots()
 		std::this_thread::sleep_for(std::chrono::milliseconds(2000));
 		this->logger_.Log(
 			"exploration start time: "
-			+ this->world_->GetSimTime().FormattedString(
+			+ this->world_->SimTime().FormattedString(
 				gazebo::common::Time::MINUTES,
 				gazebo::common::Time::SECONDS
 			)

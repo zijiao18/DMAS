@@ -71,8 +71,8 @@ void ZBot::Load(physics::ModelPtr _parent, sdf::ElementPtr ep){
 	_world_node->Init();
 	_world_pub=_world_node->Advertise<msgs::GzString>("~/world/bot");
 	this->_name=this->_model->GetName();
-	this->_world_x0=this->_model->GetWorldPose().pos.x;
-	this->_world_y0=this->_model->GetWorldPose().pos.y;
+	this->_world_x0=this->_model->WorldPose().Pos().X();
+	this->_world_y0=this->_model->WorldPose().Pos().Y();
 	this->_goal=pair<int,int>(_local_y_to_r(0),_local_x_to_c(0));
 	this->_sub_goal=this->_goal;
 
@@ -190,7 +190,7 @@ void ZBot::OnUpdate(const common::UpdateInfo & /*_info*/){
 			cout<<_name<<" ends communicating, and start moving"<<endl;
 		}
 	}
-	_logger_traj.Log(to_string(_model->GetWorldPose().pos.x)+","+to_string(_model->GetWorldPose().pos.y));
+	_logger_traj.Log(to_string(_model->WorldPose().Pos().X())+","+to_string(_model->WorldPose().Pos().Y()));
 	_time_increase_sync();
 }
 
@@ -252,8 +252,8 @@ bool ZBot::_verified_sync(int r, int c){
 }
 
 void ZBot::_update_sub_goal(){
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	double min_h=numeric_limits<double>::max();
@@ -288,8 +288,8 @@ void ZBot::_update_sub_goal(){
 }
 
 bool ZBot::_off_sub_goal(){
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	double dist=_euclid_cell_dist(r, c, _sub_goal.first, _sub_goal.second);
@@ -364,52 +364,36 @@ double ZBot::_euclid_cell_dist(int r1, int c1, int r2, int c2){
 }
 
 void ZBot::Move(){
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	double yaw=pose.rot.GetYaw();
-	gazebo::math::Vector3 vel_dir(cos(yaw),sin(yaw),0);
+	ignition::math::Pose3d pose = _model->WorldPose();
+	double yaw=pose.Rot().Yaw();
+	ignition::math::Vector3d vel_dir(cos(yaw),sin(yaw),0);
 	this->_model->GetLink("chassis")->SetLinearVel(_tvel_scale*vel_dir);
 }
 
 void ZBot::Move(double degree){
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	double yaw = pose.rot.GetYaw()+degree;
-    	_model->SetWorldPose(
-    		gazebo::math::Pose(
-    			pose.pos,
-    			gazebo::math::Quaternion(
-    				0, 
-    				0, 
-    				yaw
-    			)
-    		)
-    	);
-	gazebo::math::Vector3 vel_dir(cos(yaw),sin(yaw),0);
+	ignition::math::Pose3d pose = _model->WorldPose();
+	double yaw = pose.Rot().Yaw() + degree;
+	_model->SetWorldPose(ignition::math::Pose3d(pose.Pos(), ignition::math::Quaterniond(0, 0, yaw)));
+	ignition::math::Vector3d vel_dir(cos(yaw), sin(yaw), 0);
 	this->_model->GetLink("chassis")->SetLinearVel(_tvel_scale*vel_dir);
 }
 
-void ZBot::Move(gazebo::math::Vector3 goal){
+void ZBot::Move(ignition::math::Vector3d goal){
 	/***************************************************************** 	
 		By default the robot face to the positive direction of x-axis, 
 		yaw is rotated counter-clock wise, and it's in range [-pi,pi]
 	******************************************************************/
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	gazebo::math::Vector3 goal_dir=goal-pose.pos;
+	ignition::math::Pose3d pose = _model->WorldPose();
+	ignition::math::Vector3d goal_dir=goal-pose.Pos();
 	//angle between positive x-axis and vec_robot_to_goal
 	double goal_angle=atan2(
-		goal_dir.y,
-		goal_dir.x
+		goal_dir.Y(),
+		goal_dir.X()
 	);
-	gazebo::math::Pose pose_to_goal(
-		pose.pos,
-		gazebo::math::Quaternion(
-			0, 
-			0, 
-			goal_angle
-		)
-	);
+	ignition::math::Pose3d pose_to_goal(pose.Pos(), ignition::math::Quaterniond(0, 0, goal_angle));
 	_model->SetWorldPose(pose_to_goal);
-	double yaw = pose.rot.GetYaw();
-	gazebo::math::Vector3 vel_dir = gazebo::math::Vector3(
+	double yaw = pose.Rot().Yaw();
+	ignition::math::Vector3d vel_dir = ignition::math::Vector3d(
 		cos(yaw),
 		sin(yaw),
 		0
@@ -418,22 +402,17 @@ void ZBot::Move(gazebo::math::Vector3 goal){
 }
 
 void ZBot::Turn(double degree){
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	double new_yaw=pose.rot.GetYaw()+degree;
-    _model->SetWorldPose(
-    	gazebo::math::Pose(
-    		pose.pos,
-  			gazebo::math::Quaternion(0, 0, new_yaw)
-  		)
-  	);
+	ignition::math::Pose3d pose = _model->WorldPose();
+	double new_yaw = pose.Rot().Yaw() + degree;
+    _model->SetWorldPose(ignition::math::Pose3d(pose.Pos(), ignition::math::Quaterniond(0, 0, new_yaw)));
 }
 
-bool ZBot::Turnto(gazebo::math::Vector3 goal){
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	gazebo::math::Vector3 vec_robot_to_goal=goal-pose.pos;
-	double yaw=pose.rot.GetYaw();
+bool ZBot::Turnto(ignition::math::Vector3d goal){
+	ignition::math::Pose3d pose = _model->WorldPose();
+	ignition::math::Vector3d vec_robot_to_goal=goal-pose.Pos();
+	double yaw=pose.Rot().Yaw();
 	//angle between positive x-axis and vec_robot_to_goal
-	double goal_angle=atan2(vec_robot_to_goal.y,vec_robot_to_goal.x);
+	double goal_angle=atan2(vec_robot_to_goal.Y(),vec_robot_to_goal.X());
 	if (abs(goal_angle-yaw)>=_turn_unit_angle)
 	{
 		double degree=(goal_angle-yaw)/abs(goal_angle-yaw)*_turn_unit_angle;
@@ -444,15 +423,15 @@ bool ZBot::Turnto(gazebo::math::Vector3 goal){
 }
 
 bool ZBot::Turnto(pair<int,int>& cell){
-	gazebo::math::Pose pose = _model->GetWorldPose();
+	ignition::math::Pose3d pose = _model->WorldPose();
 	double cell_world_x = _c_to_local_x(cell.second)+_world_x0;
 	double cell_world_y = _r_to_local_y(cell.first)+_world_y0;
-	double yaw = pose.rot.GetYaw();
-	gazebo::math::Vector3 goal(cell_world_x,cell_world_y,0);
-	gazebo::math::Vector3 curpos(pose.pos.x, pose.pos.y, pose.pos.z);
-	gazebo::math::Vector3 goal_dir=goal-curpos;
+	double yaw = pose.Rot().Yaw();
+	ignition::math::Vector3d goal(cell_world_x,cell_world_y,0);
+	ignition::math::Vector3d curpos(pose.Pos().X(), pose.Pos().Y(), pose.Pos().Z());
+	ignition::math::Vector3d goal_dir=goal-curpos;
 	//angle between positive x-axis and vec_robot_to_goal
-	double goal_angle=atan2(goal_dir.y, goal_dir.x);
+	double goal_angle=atan2(goal_dir.Y(), goal_dir.X());
 	double diff_angle=goal_angle-yaw;
 	if (abs(diff_angle)>=_turn_unit_angle)
 	{
@@ -505,10 +484,10 @@ void ZBot::_sensor0_data_handler(){
 }
 
 void ZBot::_sensor0_detect_collision(vector<double>& sensor_data){
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	double bot_yaw = pose.rot.GetYaw();
-	double bot_x = pose.pos.x-_world_x0;
-	double bot_y = pose.pos.y-_world_y0;
+	ignition::math::Pose3d pose = _model->WorldPose();
+	double bot_yaw = pose.Rot().Yaw();
+	double bot_x = pose.Pos().X()-_world_x0;
+	double bot_y = pose.Pos().Y()-_world_y0;
 	//ray angle increase in counter-clock wise direction
 	double ray_angle_unit = (
 		(_sensor0_max_angle-_sensor0_min_angle)
@@ -531,10 +510,10 @@ void ZBot::_sensor0_detect_collision(vector<double>& sensor_data){
 bool ZBot::_sensor0_map_environment(vector<double>& sensor_data)
 {
 	lock_guard<mutex> lock(_occupancy_grid_lock);	
-	gazebo::math::Pose pose = _model->GetWorldPose();
-	double bot_yaw=pose.rot.GetYaw();
-	double bot_local_x=pose.pos.x-_world_x0;
-	double bot_local_y=pose.pos.y-_world_y0;
+	ignition::math::Pose3d pose = _model->WorldPose();
+	double bot_yaw=pose.Rot().Yaw();
+	double bot_local_x=pose.Pos().X()-_world_x0;
+	double bot_local_y=pose.Pos().Y()-_world_y0;
 	if (_out_of_grid(bot_local_x,bot_local_y))
 	{
 		return true;
@@ -651,8 +630,8 @@ void ZBot::_bresenham_ray_cast(double xs, double ys, double xe, double ye){
 bool ZBot::_botcom_serializer(string& msg, string msg_type){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
 	msg += (msg_type + "," + _name + ","
-		+ to_string(_model->GetWorldPose().pos.x) + ","
-		+ to_string(_model->GetWorldPose().pos.y) + ","
+		+ to_string(_model->WorldPose().Pos().X()) + ","
+		+ to_string(_model->WorldPose().Pos().Y()) + ","
 		+ to_string(_world_x0) + ","
 		+ to_string(_world_y0) + "," + " ");
 	if (msg_type.compare("grid_update")==0)
@@ -681,8 +660,8 @@ bool ZBot::_botcom_serializer(string& msg, string msg_type){
 bool ZBot::_botcom_serializer_with_log(string& msg, string msg_type){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
 	msg+=(msg_type+","+_name+","+
-		  to_string(_model->GetWorldPose().pos.x)+","+
-		  to_string(_model->GetWorldPose().pos.y)+","+
+		  to_string(_model->WorldPose().Pos().X())+","+
+		  to_string(_model->WorldPose().Pos().Y())+","+
 		  to_string(_world_x0)+","+to_string(_world_y0)+",");
 	msg+=" ";
 	if (msg_type.compare("grid_update")==0)
@@ -728,8 +707,8 @@ bool ZBot::_botcom_header_parser(string header, ZBotMSG& msg){
 	getline(hss,token,',');
 	double y=stod(token);
 	double dist=sqrt(
-		pow(x-_model->GetWorldPose().pos.x, 2.0)
-		+ pow(y-_model->GetWorldPose().pos.y, 2.0)
+		pow(x-_model->WorldPose().Pos().X(), 2.0)
+		+ pow(y-_model->WorldPose().Pos().Y(), 2.0)
 	);
 	if (name.compare(_name)!=0 && dist<_com_range)
 	{
@@ -880,8 +859,8 @@ void ZBot::_load_frontiers(){
 
 bool ZBot::_assigned_closest_frontier(){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	_load_frontiers();
@@ -916,8 +895,8 @@ bool ZBot::_assigned_closest_frontier(){
 
 bool ZBot::_assigned_neighbor_conditioned_frontier(){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	_load_frontiers();
@@ -969,8 +948,8 @@ bool ZBot::_assigned_neighbor_conditioned_frontier(){
 
 bool ZBot::_assigned_egreedy_closest_frontier(){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	_load_frontiers();
@@ -1011,8 +990,8 @@ bool ZBot::_assigned_egreedy_closest_frontier(){
 
 bool ZBot::_assigned_tournament_closest_frontier(){
 	lock_guard<mutex> lock(_occupancy_grid_lock);
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int r=_local_y_to_r(world_y-_world_y0);
 	int c=_local_x_to_c(world_x-_world_x0);
 	_load_frontiers();
@@ -1153,8 +1132,8 @@ void ZBot::_reset_botcom_hist(int r, int c){
 }
 
 bool ZBot::_reached(int r, int c){
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int bot_r=_local_y_to_r(world_y-_world_y0);
 	int bot_c=_local_x_to_c(world_x-_world_x0);
 	if (bot_r==r && bot_c==c)
@@ -1166,8 +1145,8 @@ bool ZBot::_reached(int r, int c){
 }
 
 bool ZBot::_soft_reached(int r, int c, double rch_dist){
-	double world_x=_model->GetWorldPose().pos.x;
-	double world_y=_model->GetWorldPose().pos.y;
+	double world_x=_model->WorldPose().Pos().X();
+	double world_y=_model->WorldPose().Pos().Y();
 	int bot_r=_local_y_to_r(world_y-_world_y0);
 	int bot_c=_local_x_to_c(world_x-_world_x0);
 	return (_cost_grid[bot_r][bot_c]<=rch_dist);

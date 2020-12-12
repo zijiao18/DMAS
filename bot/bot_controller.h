@@ -8,6 +8,7 @@
 #include <gazebo/transport/transport.hh>
 #include <gazebo/sensors/sensors.hh>
 #include <gazebo/common/Plugin.hh>
+#include <ignition/math.hh>
 #include <stdlib.h>
 #include <utility>
 #include <queue>
@@ -362,7 +363,7 @@ namespace gazebo
 		void Move(double degree);
 
 		/*Move toward the goal -- odometry model.*/
-		void Move(gazebo::math::Vector3 goal);
+		void Move(ignition::math::Vector3d goal);
 
 		/*Move by following the path specified as vector of x and y coordinate.*/
 		void Move(vector<double>& path);
@@ -371,7 +372,7 @@ namespace gazebo
 		void Turn(double dgree);
 
 		/*Turn to a certain location*/
-		bool Turnto(gazebo::math::Vector3 goal);
+		bool Turnto(ignition::math::Vector3d goal);
 
 		/*Turn to a certain cell in occupancy grid*/
 		bool Turnto(pair<int,int>& cell);
